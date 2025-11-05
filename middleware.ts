@@ -2,8 +2,7 @@ import { withAuth } from "next-auth/middleware";
 
 export default withAuth(
     function middleware(req) {
-        // Ici tu peux ajouter de la logique supplémentaire si besoin
-        console.log("Middleware executed for:", req.nextUrl.pathname);
+        // redirection automatique gérée par next-auth
     },
     {
         callbacks: {
