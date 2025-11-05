@@ -7,8 +7,7 @@ import ConditionalLayout from "@/components/conditional-layout"
 
 export const metadata: Metadata = {
   title: "FitTrack - Suivi d'activités",
-  description: "Application de suivi d'activités physiques",
-  generator: "v0.app",
+  description: "Application de suivi d'activités physiques"
 }
 
 export default function RootLayout({

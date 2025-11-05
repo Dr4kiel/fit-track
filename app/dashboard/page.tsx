@@ -1,25 +1,20 @@
 'use client'
+import { WorkoutCard } from "@/components/dashboard/workout_card"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Activity, CheckCircle2, Circle, Dumbbell, Timer } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 type Activity = {
   id: number
   name: string
   type: "cardio" | "musculation" | "stretching"
   sets: number
-  reps: number
+  repetitions: number
   unit: string
   completed: boolean
-}
-
-const icons = {
-  cardio: Timer,
-  musculation: Dumbbell,
-  stretching: Timer,
 }
 
 export default function DashboardPage() {
@@ -46,13 +41,13 @@ export default function DashboardPage() {
     fetchWeightEntry();
   }, []);
 
-  useMemo(() => {
+  useEffect(() => {
     const fetchActivities = async () => {
       try {
         const response = await fetch('/api/workout');
         const data = await response.json();
-        if (data.activities)
-          setActivities(data.activities);
+        if (data.workouts)
+          setActivities(data.workouts);
       } catch (error) {
         console.error('Erreur lors de la récupération des activités:', error);
       }
@@ -84,7 +79,6 @@ export default function DashboardPage() {
     submitWeight();
   }
 
-  console.log(activities);
   const completedCount = activities.filter((a) => a.completed).length
   const totalCount = activities.length
   const progressPercentage = (completedCount / totalCount) * 100
@@ -148,58 +142,8 @@ export default function DashboardPage() {
           )}
 
           {activities.map((activity) => {
-            const Icon = icons[activity.type];
             return (
-              <Card
-                key={activity.id}
-                className={`transition-all ${activity.completed ? "bg-muted/50 border-primary/20" : "hover:border-primary/50"
-                  }`}
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-4">
-                    {/* Completion Status */}
-                    <button
-                      className="shrink-0"
-                      aria-label={activity.completed ? "Marquer comme non complété" : "Marquer comme complété"}
-                    >
-                      {activity.completed ? (
-                        <CheckCircle2 className="h-8 w-8 text-primary" />
-                      ) : (
-                        <Circle className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors" />
-                      )}
-                    </button>
-
-                    {/* Activity Icon */}
-                    <div className="shrink-0 w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Icon className="h-6 w-6 text-primary" />
-                    </div>
-
-                    {/* Activity Details */}
-                    <div className="flex-1 min-w-0">
-                      <h3
-                        className={`text-lg font-semibold ${activity.completed ? "line-through text-muted-foreground" : ""
-                          }`}
-                      >
-                        {activity.name}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {activity.sets > 1
-                          ? `${activity.sets} séries × ${activity.reps} ${activity.unit}`
-                          : `${activity.reps} ${activity.unit}`}
-                      </p>
-                    </div>
-
-                    {/* Progress Indicator */}
-                    <div className="shrink-0 text-right">
-                      {activity.completed ? (
-                        <span className="text-sm font-medium text-primary">Terminé</span>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">À faire</span>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <WorkoutCard key={activity.id} activity={activity} />
             )
           })}
         </div>
