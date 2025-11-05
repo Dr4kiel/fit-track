@@ -1,62 +1,90 @@
+'use client'
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
-import { CheckCircle2, Circle, Dumbbell, Timer } from "lucide-react"
+import { Activity, CheckCircle2, Circle, Dumbbell, Timer } from "lucide-react"
+import { useMemo, useState } from "react"
 
-// Mock data for activities
-const activities = [
-  {
-    id: 1,
-    name: "Course matinale",
-    type: "cardio",
-    sets: 1,
-    reps: 30,
-    unit: "minutes",
-    completed: false,
-    icon: Timer,
-  },
-  {
-    id: 2,
-    name: "Pompes",
-    type: "musculation",
-    sets: 3,
-    reps: 15,
-    unit: "répétitions",
-    completed: true,
-    icon: Dumbbell,
-  },
-  {
-    id: 3,
-    name: "Squats",
-    type: "musculation",
-    sets: 3,
-    reps: 20,
-    unit: "répétitions",
-    completed: true,
-    icon: Dumbbell,
-  },
-  {
-    id: 4,
-    name: "Planche",
-    type: "musculation",
-    sets: 3,
-    reps: 60,
-    unit: "secondes",
-    completed: false,
-    icon: Timer,
-  },
-  {
-    id: 5,
-    name: "Étirements",
-    type: "stretching",
-    sets: 1,
-    reps: 15,
-    unit: "minutes",
-    completed: false,
-    icon: Timer,
-  },
-]
+type Activity = {
+  id: number
+  name: string
+  type: "cardio" | "musculation" | "stretching"
+  sets: number
+  reps: number
+  unit: string
+  completed: boolean
+}
+
+const icons = {
+  cardio: Timer,
+  musculation: Dumbbell,
+  stretching: Timer,
+}
 
 export default function DashboardPage() {
+
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [isDailyWeight, setIsDailyWeight] = useState(true);
+  const [weight, setWeight] = useState<number | "">("");
+
+  useMemo(() => {
+    const fetchWeightEntry = async () => {
+      try {
+        const response = await fetch('/api/weightentry/today');
+        const data = await response.json();
+        if (response.status === 200 && data.weightEntry) {
+          setIsDailyWeight(true);
+        } else {
+          setIsDailyWeight(false);
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération des entrées de poids:', error);
+      }
+    };
+
+    fetchWeightEntry();
+  }, []);
+
+  useMemo(() => {
+    const fetchActivities = async () => {
+      try {
+        const response = await fetch('/api/workout');
+        const data = await response.json();
+        if (data.activities)
+          setActivities(data.activities);
+      } catch (error) {
+        console.error('Erreur lors de la récupération des activités:', error);
+      }
+    };
+
+    fetchActivities();
+  }, []);
+
+  function handleWeightSubmit() {
+    const submitWeight = async () => {
+      try {
+        const response = await fetch('/api/weightentry', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ weight }),
+        });
+        if (response.status === 201) {
+          setIsDailyWeight(true);
+        } else {
+          console.error('Erreur lors de l\'enregistrement du poids');
+        }
+      } catch (error) {
+        console.error('Erreur lors de l\'enregistrement du poids:', error);
+      }
+    };
+
+    submitWeight();
+  }
+
+  console.log(activities);
   const completedCount = activities.filter((a) => a.completed).length
   const totalCount = activities.length
   const progressPercentage = (completedCount / totalCount) * 100
@@ -72,40 +100,66 @@ export default function DashboardPage() {
           </div>
 
           {/* Overall Progress Card */}
-          <Card className="bg-primary text-primary-foreground">
-            <CardHeader>
-              <CardTitle>Progrès du jour</CardTitle>
-              <CardDescription className="text-primary-foreground/80">
-                {completedCount} sur {totalCount} activités complétées
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <Progress value={progressPercentage} className="h-3 bg-primary-foreground/20" />
-                <p className="text-sm text-right font-medium">{Math.round(progressPercentage)}%</p>
-              </div>
-            </CardContent>
-          </Card>
+          {totalCount > 0 && (
+            <Card className="bg-primary text-primary-foreground">
+              <CardHeader>
+                <CardTitle>Progrès du jour</CardTitle>
+                <CardDescription className="text-primary-foreground/80">
+                  {completedCount} sur {totalCount} activités complétées
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Progress value={progressPercentage} className="h-3 bg-primary-foreground/20" />
+                  <p className="text-sm text-right font-medium">{Math.round(progressPercentage)}%</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Daily Weight Reminder */}
+          {!isDailyWeight && (
+            <Card className="mt-6 border border-yellow-400 bg-yellow-50">
+              <CardContent>
+                <div className="flex items-center gap-4">
+                  <Activity className="h-6 w-6 text-yellow-600" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-yellow-800">N'oubliez pas d'enregistrer votre poids aujourd'hui !</h3>
+                    <p className="text-yellow-700">Suivre votre poids quotidiennement vous aide à rester sur la bonne voie.</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Input type="number" id="weight" step={0.01} placeholder="Entrez votre poids en kg" className="mt-2 max-w-xs" value={weight} onChange={(e) => setWeight(Number(e.target.value))} />
+                      <span>Kg</span>
+                    </div>
+                    <Button className="mt-2" onClick={handleWeightSubmit}>Enregistrer</Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Activities List */}
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold mb-4">Activités du jour</h2>
 
+          {/* if activities are empty */}
+          {activities.length === 0 && (
+            <p className="text-muted-foreground">Aucune activité programmée pour aujourd'hui.</p>
+          )}
+
           {activities.map((activity) => {
-            const Icon = activity.icon
+            const Icon = icons[activity.type];
             return (
               <Card
                 key={activity.id}
-                className={`transition-all ${
-                  activity.completed ? "bg-muted/50 border-primary/20" : "hover:border-primary/50"
-                }`}
+                className={`transition-all ${activity.completed ? "bg-muted/50 border-primary/20" : "hover:border-primary/50"
+                  }`}
               >
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4">
                     {/* Completion Status */}
                     <button
-                      className="flex-shrink-0"
+                      className="shrink-0"
                       aria-label={activity.completed ? "Marquer comme non complété" : "Marquer comme complété"}
                     >
                       {activity.completed ? (
@@ -116,16 +170,15 @@ export default function DashboardPage() {
                     </button>
 
                     {/* Activity Icon */}
-                    <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <div className="shrink-0 w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                       <Icon className="h-6 w-6 text-primary" />
                     </div>
 
                     {/* Activity Details */}
                     <div className="flex-1 min-w-0">
                       <h3
-                        className={`text-lg font-semibold ${
-                          activity.completed ? "line-through text-muted-foreground" : ""
-                        }`}
+                        className={`text-lg font-semibold ${activity.completed ? "line-through text-muted-foreground" : ""
+                          }`}
                       >
                         {activity.name}
                       </h3>
@@ -137,7 +190,7 @@ export default function DashboardPage() {
                     </div>
 
                     {/* Progress Indicator */}
-                    <div className="flex-shrink-0 text-right">
+                    <div className="shrink-0 text-right">
                       {activity.completed ? (
                         <span className="text-sm font-medium text-primary">Terminé</span>
                       ) : (
