@@ -18,7 +18,7 @@ const icons = {
     autre: Dumbbell,
 }
 
-export function WorkoutCard({ activity }: { activity: Activity }) {
+export function WorkoutCard({ activity, refresh }: { activity: Activity, refresh: () => void }) {
 
     const fetchCompletionStatus = async (): Promise<boolean> => {
         try {
@@ -40,6 +40,7 @@ export function WorkoutCard({ activity }: { activity: Activity }) {
     const handleCompletedChange = (newCompleted: boolean) => {
         setCompleted(newCompleted);
         updateCompletionStatus(newCompleted);
+        refresh();
     }
 
     const updateCompletionStatus = async (newCompleted: boolean) => {

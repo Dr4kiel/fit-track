@@ -18,6 +18,15 @@ export async function GET() {
         const workouts = await prisma.workout.findMany({
             where: {
                 userId: session.user.id
+            },
+            include: {
+                dailyLogs: {
+                    where: {
+                        createdAt: {
+                            gte: new Date(new Date().setHours(0, 0, 0, 0)),
+                        }
+                    }
+                }
             }
         });
 
