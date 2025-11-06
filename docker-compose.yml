@@ -1,0 +1,17 @@
+services:
+  app:
+    container_name: next-js
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - db_data:/app/prisma
+    environment:
+      - DATABASE_URL=file:/app/prisma/prod.db
+      - NODE_ENV=production
+    restart: unless-stopped
+
+volumes:
+  db_data:
