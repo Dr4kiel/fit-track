@@ -97,9 +97,9 @@ export default function DashboardPage() {
 
           {/* Overall Progress Card */}
           {totalCount > 0 && (
-            <Card className="bg-primary text-primary-foreground shadow-lg border-0 relative overflow-hidden">
+            <Card className="bg-primary/70 text-primary-foreground shadow-lg border-0 relative overflow-hidden">
               {/* Background pattern effect */}
-              <div className="absolute inset-0 bg-primary opacity-95">
+              <div className="absolute inset-0 bg-primary/70 opacity-95">
                 <div className="absolute inset-0 bg-black/10"></div>
               </div>
               <CardHeader className="pb-4 relative z-10">

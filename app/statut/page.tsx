@@ -3,48 +3,50 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { CartesianGrid, Line, LineChart, XAxis, YAxis, Area, AreaChart, ResponsiveContainer } from "recharts"
-import { Calendar } from "@/components/ui/calendar"
-import { useState } from "react"
+import HeatMap from '@uiw/react-heat-map'
+import { useState, useEffect } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 
-// Mock weight data (last 30 days)
-const weightData = [
-  { date: "1 Jan", weight: 75.5 },
-  { date: "3 Jan", weight: 75.2 },
-  { date: "5 Jan", weight: 75.0 },
-  { date: "7 Jan", weight: 74.8 },
-  { date: "9 Jan", weight: 74.5 },
-  { date: "11 Jan", weight: 74.3 },
-  { date: "13 Jan", weight: 74.2 },
-  { date: "15 Jan", weight: 74.0 },
-  { date: "17 Jan", weight: 73.8 },
-  { date: "19 Jan", weight: 73.5 },
-  { date: "21 Jan", weight: 73.3 },
-  { date: "23 Jan", weight: 73.2 },
-  { date: "25 Jan", weight: 73.0 },
-  { date: "27 Jan", weight: 72.8 },
-  { date: "29 Jan", weight: 72.5 },
-  { date: "31 Jan", weight: 72.3 },
-]
+// Types pour les données de l'API
+interface WeightEntry {
+  date: string;
+  weight: number;
+  rawDate: Date;
+}
 
-// Mock activity completion data (last 30 days)
-const activityData = [
-  { date: "1 Jan", completed: 3, total: 5 },
-  { date: "3 Jan", completed: 5, total: 5 },
-  { date: "5 Jan", completed: 4, total: 5 },
-  { date: "7 Jan", completed: 5, total: 5 },
-  { date: "9 Jan", completed: 2, total: 5 },
-  { date: "11 Jan", completed: 5, total: 5 },
-  { date: "13 Jan", completed: 5, total: 5 },
-  { date: "15 Jan", completed: 4, total: 5 },
-  { date: "17 Jan", completed: 5, total: 5 },
-  { date: "19 Jan", completed: 3, total: 5 },
-  { date: "21 Jan", completed: 5, total: 5 },
-  { date: "23 Jan", completed: 5, total: 5 },
-  { date: "25 Jan", completed: 4, total: 5 },
-  { date: "27 Jan", completed: 5, total: 5 },
-  { date: "29 Jan", completed: 5, total: 5 },
-  { date: "31 Jan", completed: 3, total: 5 },
-]
+interface ActivityEntry {
+  date: string;
+  completed: number;
+  total: number;
+}
+
+interface CalendarData {
+  [key: string]: {
+    completed: number;
+    total: number;
+  };
+}
+
+interface Stats {
+  currentWeight: number | null;
+  startWeight: number | null;
+  totalActivities: number;
+  completionRate: number;
+  totalWorkouts: number;
+}
+
+interface StatsData {
+  weightData: WeightEntry[];
+  activityData: ActivityEntry[];
+  calendarData: CalendarData;
+  stats: Stats;
+}
+
+// Type pour les données de la heatmap
+interface HeatMapValue {
+  date: string;
+  count: number;
+}
 
 const weightChartConfig = {
   weight: {
@@ -60,75 +62,146 @@ const activityChartConfig = {
   },
 } satisfies ChartConfig
 
-// Mock calendar data - dates with completion status
-const calendarData = {
-  "2025-01-01": { completed: 3, total: 5 },
-  "2025-01-02": { completed: 5, total: 5 },
-  "2025-01-03": { completed: 5, total: 5 },
-  "2025-01-04": { completed: 4, total: 5 },
-  "2025-01-05": { completed: 5, total: 5 },
-  "2025-01-06": { completed: 2, total: 5 },
-  "2025-01-07": { completed: 5, total: 5 },
-  "2025-01-08": { completed: 5, total: 5 },
-  "2025-01-09": { completed: 4, total: 5 },
-  "2025-01-10": { completed: 5, total: 5 },
-  "2025-01-11": { completed: 3, total: 5 },
-  "2025-01-12": { completed: 5, total: 5 },
-  "2025-01-13": { completed: 5, total: 5 },
-  "2025-01-14": { completed: 4, total: 5 },
-  "2025-01-15": { completed: 5, total: 5 },
-  "2025-01-16": { completed: 5, total: 5 },
-  "2025-01-17": { completed: 3, total: 5 },
-  "2025-01-18": { completed: 5, total: 5 },
-  "2025-01-19": { completed: 4, total: 5 },
-  "2025-01-20": { completed: 5, total: 5 },
-  "2025-01-21": { completed: 2, total: 5 },
-  "2025-01-22": { completed: 5, total: 5 },
-  "2025-01-23": { completed: 5, total: 5 },
-  "2025-01-24": { completed: 4, total: 5 },
-  "2025-01-25": { completed: 5, total: 5 },
-  "2025-01-26": { completed: 3, total: 5 },
-  "2025-01-27": { completed: 5, total: 5 },
-  "2025-01-28": { completed: 5, total: 5 },
-  "2025-01-29": { completed: 4, total: 5 },
-  "2025-01-30": { completed: 5, total: 5 },
-  "2025-01-31": { completed: 3, total: 5 },
-  "2025-02-01": { completed: 5, total: 5 },
-  "2025-02-02": { completed: 4, total: 5 },
-  "2025-02-03": { completed: 2, total: 5 },
-  "2025-02-04": { completed: 3, total: 5 }, // Today - incomplete
-}
-
 export default function StatutPage() {
-  const currentWeight = weightData[weightData.length - 1].weight
-  const startWeight = weightData[0].weight
-  const weightChange = currentWeight - startWeight
-  const totalActivities = activityData.reduce((sum, day) => sum + day.completed, 0)
+  const [statsData, setStatsData] = useState<StatsData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
-
-  const getDayClassName = (date: Date) => {
-    const dateStr = date.toISOString().split("T")[0]
-    const dayData = calendarData[dateStr]
-    const today = new Date()
-    const todayStr = today.toISOString().split("T")[0]
-    const isToday = dateStr === todayStr
-    const isPast = date < today && dateStr !== todayStr
-
-    if (dayData) {
-      const isComplete = dayData.completed === dayData.total
-
-      if (isToday && !isComplete) {
-        return "bg-orange-500 text-white hover:bg-orange-600"
-      } else if (isComplete) {
-        return "bg-green-500 text-white hover:bg-green-600"
-      } else if (isPast) {
-        return "bg-muted text-muted-foreground hover:bg-muted/80"
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('/api/stats')
+        if (!response.ok) {
+          throw new Error('Erreur lors du chargement des statistiques')
+        }
+        const data = await response.json()
+        setStatsData(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erreur inconnue')
+      } finally {
+        setLoading(false)
       }
     }
 
-    return ""
+    fetchStats()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-balance mb-2">Statut du compte</h1>
+            <p className="text-muted-foreground">Suivez votre progression et vos statistiques</p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3 mb-8">
+            {[1, 2, 3].map((i) => (
+              <Card key={i}>
+                <CardHeader className="pb-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-8 w-16" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-4 w-32" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="grid gap-6 md:grid-cols-2 mb-8">
+            {[1, 2].map((i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-6 w-32" />
+                  <Skeleton className="h-4 w-64" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-[300px] w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
   }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-balance mb-2">Statut du compte</h1>
+            <p className="text-muted-foreground">Suivez votre progression et vos statistiques</p>
+          </div>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-destructive">Erreur: {error}</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
+
+  if (!statsData) return null
+
+  const { weightData, activityData, calendarData, stats } = statsData
+  const currentWeight = stats.currentWeight
+  const startWeight = stats.startWeight
+  const weightChange = currentWeight && startWeight ? currentWeight - startWeight : 0
+  const totalActivities = stats.totalActivities
+
+  console.log('Données des statistiques:', stats)
+
+  // Préparer les données pour la HeatMap
+  const prepareHeatmapData = (): HeatMapValue[] => {
+    if (!calendarData || typeof calendarData !== 'object') {
+      return []
+    }
+
+    const heatmapData: HeatMapValue[] = []
+    const today = new Date()
+    const todayStr = today.toISOString().split('T')[0]
+
+    // Générer 365 jours de données (d'il y a un an à aujourd'hui)
+    Object.entries(calendarData).forEach(([dateStr, data]: [string, { completed: number; total: number }]) => {
+      if (dateStr <= todayStr) {
+        // Convertir de "2025-11-06" vers "2025/11/6" pour la heatmap
+        const date = new Date(dateStr)
+        const heatmapDate = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`
+
+        if (data.completed <= 0)
+          return;
+
+        // Calculer l'intensité basée sur le pourcentage de complétion
+        let intensity = 0
+        if (data.total > 0) {
+          const completionRate = data.completed / data.total
+          if (completionRate >= 1) intensity = 4      // 100% = excellente
+          else if (completionRate >= 0.75) intensity = 3  // 75-99% = bonne
+          else if (completionRate >= 0.5) intensity = 2   // 50-74% = modérée
+          else if (completionRate > 0) intensity = 1      // 1-49% = faible
+          // 0% reste à 0 = aucune
+        }
+
+        heatmapData.push({
+          date: heatmapDate,
+          count: intensity
+        })
+      }
+    })
+
+    console.log('Données de la heatmap:', heatmapData)
+
+    return heatmapData
+  }
+
+  const heatmapData = prepareHeatmapData()
+
+  // Dates de début et fin pour la heatmap
+  const startDate = new Date()
+  startDate.setFullYear(startDate.getFullYear() - 1)
+  const endDate = new Date()
 
   return (
     <div className="min-h-screen bg-background">
@@ -144,12 +217,20 @@ export default function StatutPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Poids actuel</CardDescription>
-              <CardTitle className="text-3xl">{currentWeight} kg</CardTitle>
+              <CardTitle className="text-3xl">
+                {currentWeight ? `${currentWeight} kg` : 'N/A'}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                {weightChange > 0 ? "+" : ""}
-                {weightChange.toFixed(1)} kg depuis le début
+                {currentWeight && startWeight ? (
+                  <>
+                    {weightChange > 0 ? "+" : ""}
+                    {weightChange.toFixed(1)} kg depuis le début
+                  </>
+                ) : (
+                  'Aucune donnée de poids'
+                )}
               </p>
             </CardContent>
           </Card>
@@ -168,7 +249,7 @@ export default function StatutPage() {
             <CardHeader className="pb-2">
               <CardDescription>Taux de complétion</CardDescription>
               <CardTitle className="text-3xl">
-                {Math.round((totalActivities / (activityData.length * 5)) * 100)}%
+                {stats.completionRate}%
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -186,45 +267,51 @@ export default function StatutPage() {
               <CardDescription>Évolution de votre poids sur les 30 derniers jours</CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={weightChartConfig} className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={weightData}
-                    margin={{
-                      top: 5,
-                      right: 10,
-                      left: 10,
-                      bottom: 5,
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis
-                      dataKey="date"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      tick={{ fill: "hsl(var(--muted-foreground))" }}
-                      tickFormatter={(value) => value.split(" ")[0]}
-                    />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      tick={{ fill: "hsl(var(--muted-foreground))" }}
-                      domain={["dataMin - 1", "dataMax + 1"]}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Line
-                      type="monotone"
-                      dataKey="weight"
-                      stroke="var(--color-weight)"
-                      strokeWidth={2}
-                      dot={{ fill: "var(--color-weight)", r: 4 }}
-                      activeDot={{ r: 6 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </ChartContainer>
+              {weightData.length > 0 ? (
+                <ChartContainer config={weightChartConfig} className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={weightData}
+                      margin={{
+                        top: 5,
+                        right: 10,
+                        left: 10,
+                        bottom: 5,
+                      }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        tick={{ fill: "hsl(var(--muted-foreground))" }}
+                        tickFormatter={(value) => value.split(" ")[0]}
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        tick={{ fill: "hsl(var(--muted-foreground))" }}
+                        domain={weightData.length > 1 ? ["dataMin - 1", "dataMax + 1"] : undefined}
+                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Line
+                        type="monotone"
+                        dataKey="weight"
+                        stroke="var(--color-weight)"
+                        strokeWidth={2}
+                        dot={{ fill: "var(--color-weight)", r: 4 }}
+                        activeDot={{ r: 6 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              ) : (
+                <div className="h-[300px] flex items-center justify-center">
+                  <p className="text-muted-foreground">Aucune donnée de poids disponible</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -235,101 +322,126 @@ export default function StatutPage() {
               <CardDescription>Nombre d'activités complétées par jour</CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={activityChartConfig} className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={activityData}
-                    margin={{
-                      top: 5,
-                      right: 10,
-                      left: 10,
-                      bottom: 5,
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis
-                      dataKey="date"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      tick={{ fill: "hsl(var(--muted-foreground))" }}
-                      tickFormatter={(value) => value.split(" ")[0]}
-                    />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      tick={{ fill: "hsl(var(--muted-foreground))" }}
-                      domain={[0, 5]}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Area
-                      type="monotone"
-                      dataKey="completed"
-                      stroke="var(--color-completed)"
-                      fill="var(--color-completed)"
-                      fillOpacity={0.3}
-                      strokeWidth={2}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </ChartContainer>
+              {activityData.length > 0 ? (
+                <ChartContainer config={activityChartConfig} className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={activityData}
+                      margin={{
+                        top: 5,
+                        right: 10,
+                        left: 10,
+                        bottom: 5,
+                      }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        tick={{ fill: "hsl(var(--muted-foreground))" }}
+                        tickFormatter={(value) => value.split(" ")[0]}
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        tick={{ fill: "hsl(var(--muted-foreground))" }}
+                        domain={[0, Math.max(...activityData.map(d => d.total), 1)]}
+                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Area
+                        type="monotone"
+                        dataKey="completed"
+                        stroke="var(--color-completed)"
+                        fill="var(--color-completed)"
+                        fillOpacity={0.3}
+                        strokeWidth={2}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              ) : (
+                <div className="h-[300px] flex items-center justify-center">
+                  <p className="text-muted-foreground">Aucune donnée d'activité disponible</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Calendar */}
+        {/* Activity HeatMap */}
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Calendrier d'activités</CardTitle>
-            <CardDescription>Visualisez votre historique de complétion</CardDescription>
-            <div className="flex gap-4 mt-4 text-sm flex-wrap">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-sm bg-green-500" />
-                <span className="text-muted-foreground">Complété</span>
+            <CardTitle>Historique d'activités</CardTitle>
+            <CardDescription>Visualisez votre régularité d'activité sur l'année écoulée</CardDescription>
+            <div className="flex gap-4 mt-4 text-sm flex-wrap items-center">
+              <span className="text-muted-foreground mr-2">Moins</span>
+              <div className="flex gap-1">
+                <div className="w-3 h-3 rounded-sm bg-slate-200" title="0% - Aucune activité" />
+                <div className="w-3 h-3 rounded-sm bg-green-200" title="1-49% - Faible complétion" />
+                <div className="w-3 h-3 rounded-sm bg-green-400" title="50-74% - Complétion modérée" />
+                <div className="w-3 h-3 rounded-sm bg-green-600" title="75-99% - Bonne complétion" />
+                <div className="w-3 h-3 rounded-sm bg-green-800" title="100% - Complétion excellente" />
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-sm bg-orange-500" />
-                <span className="text-muted-foreground">Aujourd'hui (incomplet)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-sm bg-muted" />
-                <span className="text-muted-foreground">Incomplet</span>
-              </div>
+              <span className="text-muted-foreground ml-2">Plus</span>
             </div>
           </CardHeader>
-          <CardContent className="flex justify-center">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={setSelectedDate}
-              numberOfMonths={2}
-              className="rounded-md border"
-              modifiers={{
-                completed: (date) => {
-                  const dateStr = date.toISOString().split("T")[0]
-                  const dayData = calendarData[dateStr]
-                  return dayData ? dayData.completed === dayData.total : false
-                },
-                todayIncomplete: (date) => {
-                  const dateStr = date.toISOString().split("T")[0]
-                  const today = new Date().toISOString().split("T")[0]
-                  const dayData = calendarData[dateStr]
-                  return dateStr === today && dayData ? dayData.completed < dayData.total : false
-                },
-                incomplete: (date) => {
-                  const dateStr = date.toISOString().split("T")[0]
-                  const today = new Date()
-                  const dayData = calendarData[dateStr]
-                  return date < today && dayData ? dayData.completed < dayData.total : false
-                },
-              }}
-              modifiersClassNames={{
-                completed: "bg-green-500 text-white hover:bg-green-600",
-                todayIncomplete: "bg-orange-500 text-white hover:bg-orange-600",
-                incomplete: "bg-muted text-muted-foreground hover:bg-muted/80",
-              }}
-            />
+          <CardContent>
+            <div className="w-full overflow-x-auto">
+              {heatmapData.length > 0 ? (
+                <HeatMap
+                  value={heatmapData}
+                  startDate={startDate}
+                  endDate={endDate}
+                  width="100%"
+                  rectProps={{
+                    rx: 2,
+                  }}
+                  panelColors={{
+                    0: '#f1f5f9',   // slate-100 - Aucune activité
+                    1: '#bbf7d0',   // green-200 - Faible activité  
+                    2: '#86efac',   // green-300 - Activité modérée
+                    3: '#4ade80',   // green-400 - Bonne activité
+                    4: '#22c55e'    // green-500 - Activité excellente
+                  }}
+                  rectRender={(props, data) => {
+                    // Convertir le format de date de "2025/11/6" vers "2025-11-06" pour retrouver les données
+                    const [year, month, day] = data.date.split('/')
+                    const dateKey = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+                    const dayData = calendarData[dateKey]
+                    let tooltip = `${data.date}: `
+
+                    if (dayData) {
+                      tooltip += `${dayData.completed}/${dayData.total} activités complétées`
+                      if (dayData.total > 0) {
+                        const percentage = Math.round((dayData.completed / dayData.total) * 100)
+                        tooltip += ` (${percentage}%)`
+                      }
+                    } else {
+                      tooltip += 'Aucune activité'
+                    }
+
+                    return (
+                      <rect
+                        {...props}
+                        style={{
+                          ...props.style,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <title>{tooltip}</title>
+                      </rect>
+                    )
+                  }}
+                />
+              ) : (
+                <div className="h-40 flex items-center justify-center">
+                  <p className="text-muted-foreground">Aucune donnée d'activité disponible</p>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
