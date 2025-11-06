@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { CartesianGrid, Line, LineChart, XAxis, YAxis, Area, AreaChart, ResponsiveContainer } from "recharts"
+import { CartesianGrid, Line, LineChart, XAxis, YAxis, Area, AreaChart, ResponsiveContainer, Legend } from "recharts"
 import HeatMap from '@uiw/react-heat-map'
 import { useState, useEffect } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -12,6 +12,7 @@ interface WeightEntry {
   date: string;
   weight: number;
   rawDate: Date;
+  trend?: number;
 }
 
 interface ActivityEntry {
@@ -51,7 +52,11 @@ interface HeatMapValue {
 const weightChartConfig = {
   weight: {
     label: "Poids (kg)",
-    color: "hsl(var(--chart-1))",
+    color: "hsl(217, 91%, 60%)", // Bleu
+  },
+  trend: {
+    label: "Tendance",
+    color: "hsl(142, 76%, 36%)", // Vert
   },
 } satisfies ChartConfig
 
@@ -153,6 +158,45 @@ export default function StatutPage() {
 
   console.log('Données des statistiques:', stats)
 
+  // Fonction pour calculer la tendance linéaire
+  const calculateTrend = (data: WeightEntry[]): WeightEntry[] => {
+    if (data.length < 2) {
+      // Si pas assez de données, on retourne les données sans tendance
+      return data.map(point => ({ ...point, trend: point.weight }))
+    }
+
+    const n = data.length
+    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0
+
+    data.forEach((point, index) => {
+      sumX += index
+      sumY += point.weight
+      sumXY += index * point.weight
+      sumXX += index * index
+    })
+
+    const denominator = n * sumXX - sumX * sumX
+
+    // Éviter la division par zéro
+    if (denominator === 0) {
+      return data.map(point => ({ ...point, trend: point.weight }))
+    }
+
+    const slope = (n * sumXY - sumX * sumY) / denominator
+    const intercept = (sumY - slope * sumX) / n
+
+    return data.map((point, index) => ({
+      ...point,
+      trend: Number((slope * index + intercept).toFixed(2))
+    }))
+  }
+
+  // Calculer les données avec tendance
+  const weightDataWithTrend = calculateTrend(weightData)
+
+  console.log('weightData:', weightData)
+  console.log('weightDataWithTrend:', weightDataWithTrend)
+
   // Préparer les données pour la HeatMap
   const prepareHeatmapData = (): HeatMapValue[] => {
     if (!calendarData || typeof calendarData !== 'object') {
@@ -222,14 +266,25 @@ export default function StatutPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm">
                 {currentWeight && startWeight ? (
-                  <>
+                  <span className={`flex items-center gap-1 ${weightChange > 0 ? 'text-red-500' : weightChange < 0 ? 'text-green-500' : 'text-muted-foreground'
+                    }`}>
+                    {weightChange > 0 && (
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L11 6.414V13a1 1 0 11-2 0V6.414L7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                    {weightChange < 0 && (
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 17a1 1 0 01-.707-.293l-3-3a1 1 0 011.414-1.414L9 13.586V7a1 1 0 112 0v6.586l1.293-1.293a1 1 0 011.414 1.414l-3 3A1 1 0 0110 17z" clipRule="evenodd" />
+                      </svg>
+                    )}
                     {weightChange > 0 ? "+" : ""}
                     {weightChange.toFixed(1)} kg depuis le début
-                  </>
+                  </span>
                 ) : (
-                  'Aucune donnée de poids'
+                  <span className="text-muted-foreground">Aucune donnée de poids</span>
                 )}
               </p>
             </CardContent>
@@ -264,14 +319,14 @@ export default function StatutPage() {
           <Card>
             <CardHeader>
               <CardTitle>Suivi du poids</CardTitle>
-              <CardDescription>Évolution de votre poids sur les 30 derniers jours</CardDescription>
+              <CardDescription>Évolution de votre poids sur les 30 derniers jours avec courbe de tendance</CardDescription>
             </CardHeader>
             <CardContent>
               {weightData.length > 0 ? (
                 <ChartContainer config={weightChartConfig} className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart
-                      data={weightData}
+                      data={weightDataWithTrend}
                       margin={{
                         top: 5,
                         right: 10,
@@ -296,13 +351,31 @@ export default function StatutPage() {
                         domain={weightData.length > 1 ? ["dataMin - 1", "dataMax + 1"] : undefined}
                       />
                       <ChartTooltip content={<ChartTooltipContent />} />
+                      <Legend
+                        verticalAlign="top"
+                        height={36}
+                        iconType="line"
+                        wrapperStyle={{ paddingBottom: "20px" }}
+                      />
                       <Line
                         type="monotone"
                         dataKey="weight"
-                        stroke="var(--color-weight)"
+                        stroke="hsl(217, 91%, 60%)"
                         strokeWidth={2}
-                        dot={{ fill: "var(--color-weight)", r: 4 }}
+                        dot={{ fill: "hsl(217, 91%, 60%)", r: 4 }}
                         activeDot={{ r: 6 }}
+                        name="Poids (kg)"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="trend"
+                        stroke="hsl(142, 76%, 36%)"
+                        strokeWidth={3}
+                        strokeDasharray="8 4"
+                        dot={false}
+                        activeDot={{ r: 5, fill: "hsl(142, 76%, 36%)" }}
+                        opacity={0.8}
+                        name="Tendance"
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -404,7 +477,7 @@ export default function StatutPage() {
                     1: '#bbf7d0',   // green-200 - Faible activité  
                     2: '#86efac',   // green-300 - Activité modérée
                     3: '#4ade80',   // green-400 - Bonne activité
-                    4: '#22c55e'    // green-500 - Activité excellente
+                    4: '#15803d'    // green-600 - Activité excellente
                   }}
                   rectRender={(props, data) => {
                     // Convertir le format de date de "2025/11/6" vers "2025-11-06" pour retrouver les données
