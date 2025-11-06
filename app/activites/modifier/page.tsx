@@ -16,13 +16,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Pencil, Trash2, Plus, Dumbbell, Timer, Wind } from "lucide-react"
+import { useMemo } from "react"
 
 type Activity = {
-  id: number
+  id: string
   name: string
   type: "cardio" | "musculation" | "stretching" | "autre"
   sets: number
-  reps: number
+  repetitions: number
   unit: "minutes" | "répétitions" | "secondes"
 }
 
@@ -30,7 +31,7 @@ const activityTypeIcons = {
   cardio: Timer,
   musculation: Dumbbell,
   stretching: Wind,
-  autre: Timer,
+  autre: Dumbbell,
 }
 
 const activityTypeLabels = {
@@ -41,48 +42,9 @@ const activityTypeLabels = {
 }
 
 export default function ModifierActivitesPage() {
-  const [activities, setActivities] = React.useState<Activity[]>([
-    {
-      id: 1,
-      name: "Course matinale",
-      type: "cardio",
-      sets: 1,
-      reps: 30,
-      unit: "minutes",
-    },
-    {
-      id: 2,
-      name: "Pompes",
-      type: "musculation",
-      sets: 3,
-      reps: 15,
-      unit: "répétitions",
-    },
-    {
-      id: 3,
-      name: "Squats",
-      type: "musculation",
-      sets: 3,
-      reps: 20,
-      unit: "répétitions",
-    },
-    {
-      id: 4,
-      name: "Planche",
-      type: "musculation",
-      sets: 3,
-      reps: 60,
-      unit: "secondes",
-    },
-    {
-      id: 5,
-      name: "Étirements",
-      type: "stretching",
-      sets: 1,
-      reps: 15,
-      unit: "minutes",
-    },
-  ])
+  const [activities, setActivities] = React.useState<Activity[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [saving, setSaving] = React.useState(false)
 
   const [isDialogOpen, setIsDialogOpen] = React.useState(false)
   const [editingActivity, setEditingActivity] = React.useState<Activity | null>(null)
@@ -90,7 +52,7 @@ export default function ModifierActivitesPage() {
     name: "",
     type: "musculation",
     sets: 3,
-    reps: 10,
+    repetitions: 10,
     unit: "répétitions",
   })
 
@@ -101,7 +63,7 @@ export default function ModifierActivitesPage() {
         name: activity.name,
         type: activity.type,
         sets: activity.sets,
-        reps: activity.reps,
+        repetitions: activity.repetitions,
         unit: activity.unit,
       })
     } else {
@@ -110,40 +72,109 @@ export default function ModifierActivitesPage() {
         name: "",
         type: "musculation",
         sets: 3,
-        reps: 10,
+        repetitions: 10,
         unit: "répétitions",
       })
     }
     setIsDialogOpen(true)
   }
 
-  const handleSaveActivity = () => {
+  const handleSaveActivity = async () => {
     if (!formData.name.trim()) {
       alert("Veuillez entrer un nom d'activité")
       return
     }
 
-    if (editingActivity) {
-      // Update existing activity
-      setActivities(activities.map((a) => (a.id === editingActivity.id ? { ...formData, id: a.id } : a)))
-    } else {
-      // Add new activity
-      const newActivity: Activity = {
-        ...formData,
-        id: Math.max(...activities.map((a) => a.id), 0) + 1,
+    setSaving(true)
+    try {
+      if (editingActivity) {
+        // Update existing activity
+        const response = await fetch('/api/workout', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: editingActivity.id,
+            ...formData,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error('Erreur lors de la mise à jour')
+        }
+
+        const { workout } = await response.json()
+        setActivities(activities.map((a) => (a.id === editingActivity.id ? workout : a)))
+      } else {
+        // Add new activity
+        const response = await fetch('/api/workout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+        })
+
+        if (!response.ok) {
+          throw new Error('Erreur lors de la création')
+        }
+
+        const { workout } = await response.json()
+        setActivities([...activities, workout])
       }
-      setActivities([...activities, newActivity])
-    }
 
-    setIsDialogOpen(false)
-    setEditingActivity(null)
+      setIsDialogOpen(false)
+      setEditingActivity(null)
+    } catch (error) {
+      console.error('Erreur:', error)
+      alert('Erreur lors de l\'enregistrement de l\'activité')
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const handleDeleteActivity = (id: number) => {
+  const handleDeleteActivity = async (id: string) => {
     if (confirm("Êtes-vous sûr de vouloir supprimer cette activité ?")) {
-      setActivities(activities.filter((a) => a.id !== id))
+      try {
+        const response = await fetch(`/api/workout?id=${id}`, {
+          method: 'DELETE',
+        })
+
+        if (!response.ok) {
+          throw new Error('Erreur lors de la suppression')
+        }
+
+        setActivities(activities.filter((a) => a.id !== id))
+      } catch (error) {
+        console.error('Erreur:', error)
+        alert('Erreur lors de la suppression de l\'activité')
+      }
     }
   }
+
+  React.useEffect(() => {
+    const fetchActivities = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch('/api/workout');
+        if (!response.ok) {
+          throw new Error('Erreur lors de la récupération des activités');
+        }
+        const data = await response.json();
+        if (data.workouts) {
+          setActivities(data.workouts);
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération des activités:', error);
+        alert('Erreur lors du chargement des activités');
+      } finally {
+        setLoading(false)
+      }
+    };
+
+    fetchActivities();
+  }, [])
 
   return (
     <div className="min-h-screen bg-background">
@@ -219,16 +250,16 @@ export default function ModifierActivitesPage() {
                     </div>
 
                     <div className="grid gap-2">
-                      <Label htmlFor="reps">Par série</Label>
+                      <Label htmlFor="repetitions">Par série</Label>
                       <Input
-                        id="reps"
+                        id="repetitions"
                         type="number"
                         min="1"
-                        value={formData.reps}
+                        value={formData.repetitions}
                         onChange={(e) =>
                           setFormData({
                             ...formData,
-                            reps: Number.parseInt(e.target.value) || 1,
+                            repetitions: Number.parseInt(e.target.value) || 1,
                           })
                         }
                       />
@@ -254,10 +285,12 @@ export default function ModifierActivitesPage() {
                 </div>
 
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={saving}>
                     Annuler
                   </Button>
-                  <Button onClick={handleSaveActivity}>{editingActivity ? "Enregistrer" : "Ajouter"}</Button>
+                  <Button onClick={handleSaveActivity} disabled={saving}>
+                    {saving ? "Enregistrement..." : editingActivity ? "Enregistrer" : "Ajouter"}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -266,7 +299,13 @@ export default function ModifierActivitesPage() {
 
         {/* Activities List */}
         <div className="space-y-4">
-          {activities.length === 0 ? (
+          {loading ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-muted-foreground">Chargement des activités...</p>
+              </CardContent>
+            </Card>
+          ) : activities.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <p className="text-muted-foreground">Aucune activité. Commencez par en ajouter une !</p>
@@ -280,7 +319,7 @@ export default function ModifierActivitesPage() {
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
                       {/* Activity Icon */}
-                      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <div className="shrink-0 w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                         <Icon className="h-6 w-6 text-primary" />
                       </div>
 
@@ -290,8 +329,8 @@ export default function ModifierActivitesPage() {
                         <p className="text-sm text-muted-foreground">
                           {activityTypeLabels[activity.type]} •{" "}
                           {activity.sets > 1
-                            ? `${activity.sets} séries × ${activity.reps} ${activity.unit}`
-                            : `${activity.reps} ${activity.unit}`}
+                            ? `${activity.sets} séries × ${activity.repetitions} ${activity.unit}`
+                            : `${activity.repetitions} ${activity.unit}`}
                         </p>
                       </div>
 
