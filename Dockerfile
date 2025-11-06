@@ -1,5 +1,5 @@
 # Utilise l'image officielle Node.js comme image de base
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Installer les dépendances système nécessaires
 RUN apk add --no-cache libc6-compat openssl
@@ -14,7 +14,7 @@ COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
 
 # Installer les dépendances
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci && npm cache clean --force
 
 # Générer le client Prisma
 RUN npx prisma generate
