@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "52025:3000"
     volumes:
       - db_data:/app/prisma
     environment:
